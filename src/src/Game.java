@@ -2,9 +2,8 @@ package src;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
-
-import java.awt.*;
 
 
 import src.game2D.*;
@@ -35,15 +34,17 @@ public class Game extends GameCore
     // Game state flags
     boolean flap = false;
 
-    // Game resources
-    Animation landing;
-    
-    Sprite player = null;
-    ArrayList<Sprite> clouds = new ArrayList<Sprite>();
+    // Animations
+    static Animation playerIdleAnim;
+    static Animation playerWalkingAnim;
+
+    //Sprites
+    Sprite player;
+    Sprite loadingBar;
 
     TileMap tmap = new TileMap();	// Our tile map, note that we load it in init()
     
-    long total;         			// The score will be the total time elapsed since a crash
+    int total = 0;         			// The score will be the total time elapsed since a crash
 
 
     /**
@@ -71,34 +72,20 @@ public class Game extends GameCore
         // Load the tile map and print it out so we can check it is valid
         tmap.loadMap("src/maps", "map.txt");
         
-        setSize(tmap.getPixelWidth()/4, tmap.getPixelHeight());
+        setSize(1920, 1080);
         setVisible(true);
 
-        // Create a set of background sprites that we can 
-        // rearrange to give the illusion of motion
-        
-        landing = new Animation();
-        landing.loadAnimationFromSheet("src/images/spritesheet (2).png", 17, 1, 60);
-        
-        // Initialise the player with an animation
-        player = new Sprite(landing);
-        
-        // Load a single cloud animation
-        Animation ca = new Animation();
-        ca.addFrame(loadImage("images/cloud.png"), 1000);
-        
-        // Create 3 clouds at random positions off the screen
-        // to the right
-        for (int c=0; c<3; c++)
-        {
-        	s = new Sprite(ca);
-        	s.setX(screenWidth + (int)(Math.random()*200.0f));
-        	s.setY(30 + (int)(Math.random()*150.0f));
-        	s.setVelocityX(-0.02f);
-        	s.show();
-        	clouds.add(s);
-        }
+        playerIdleAnim = new Animation();
+        playerIdleAnim.loadAnimationFromSheet("src/images/playerIdle.png", 20, 1, 60);
+        playerWalkingAnim = new Animation();
+        playerWalkingAnim.loadAnimationFromSheet("src/images/playerWalking.png" , 20 , 1 , 60);
 
+
+        // Initialise the player with an animation
+        player = new Sprite(playerIdleAnim);
+        loading = new Sprite()
+
+        animLoop();
         initialiseGame();
       		
         System.out.println(tmap);
@@ -111,54 +98,71 @@ public class Game extends GameCore
      */
     public void initialiseGame()
     {
-    	total = 0;
     	      
         player.setX(64);
         player.setY(200);
         player.setVelocityX(0);
         player.setVelocityY(0);
-        player.show();
     }
     
     /**
      * Draw the current state of the game
      */
     public void draw(Graphics2D g)
-    {    	
-    	// Be careful about the order in which you draw objects - you
-    	// should draw the background first, then work your way 'forward'
-
+    {
     	// First work out how much we need to shift the view 
     	// in order to see where the player is.
         int xo = 0;
         int yo = 0;
 
-        // If relative, adjust the offset so that
-        // it is relative to the player
 
-        // ...?
-        
-        g.setColor(Color.white);
+        g.setColor(Color.blue);
         g.fillRect(0, 0, getWidth(), getHeight());
-        
-        // Apply offsets to sprites then draw them
-        for (Sprite s: clouds)
-        {
-        	s.setOffsets(xo,yo);
-        	s.draw(g);
-        }
 
-        // Apply offsets to player and draw 
-        player.setOffsets(xo, yo);
-        player.draw(g);
-                
-        // Apply offsets to tile map and draw  it
-        tmap.draw(g,xo,yo);    
-        
         // Show score and status information
         String msg = String.format("Score: %d", total/100);
         g.setColor(Color.darkGray);
         g.drawString(msg, getWidth() - 80, 50);
+
+        g.drawImage(playerIdleAnim.getImage() , 50 , 50 , null );
+        g.drawRect(getWidth() / 3 , (getHeight() - getHeight() / 3) , 500 , 32);
+
+    }
+
+    public void animLoop() {
+
+        long startTime = System.currentTimeMillis();
+        long currTime = startTime;
+
+        BufferedImage buff = new BufferedImage(getWidth() , getHeight() , BufferedImage.TYPE_INT_RGB);
+
+        Graphics2D bg = (Graphics2D) buff.createGraphics();
+
+        while(true) {
+
+            long elapsedTime = System.currentTimeMillis() - currTime;
+
+            currTime += elapsedTime;
+
+            playerIdleAnim.update(elapsedTime);
+            loadingBar.update(elapsedTime);
+
+            draw(bg);
+
+            Graphics g = getGraphics();
+            g.drawImage(buff , 0 , 0 , null);
+
+            try {
+                Thread.sleep(20);
+            }
+            catch(InterruptedException ex) {
+
+            }
+            g.dispose();
+
+
+        }
+
     }
 
     /**
@@ -173,9 +177,7 @@ public class Game extends GameCore
 //        player.setVelocityY(player.getVelocityY()+(gravity*elapsed));
 //
 //       	player.setAnimationSpeed(1.0f);
-                
-       	for (Sprite s: clouds)
-       		s.update(elapsed);
+
        	
         // Now update the sprites animation and position
         player.update(elapsed);
@@ -226,10 +228,25 @@ public class Game extends GameCore
     	   	
     	if (key == KeyEvent.VK_S)
     	{
+
+            player.setAnimation(playerWalkingAnim);
+            player.setScale(-1 , 1);
+
     		// Example of playing a sound as a thread
     		Sound s = new Sound("sounds/caw.wav");
     		s.start();
     	}
+
+        if(key == KeyEvent.VK_D)
+        {
+            player.setVelocityX( 1 ); player.setAnimation(playerWalkingAnim);
+        }
+
+        if(key == KeyEvent.VK_R)
+            {
+                player.show();
+            }
+
     }
 
     public boolean boundingBoxCollision(Sprite s1, Sprite s2)
@@ -297,6 +314,7 @@ public class Game extends GameCore
 		{
 			case KeyEvent.VK_ESCAPE : stop(); break;
 			case KeyEvent.VK_UP     : flap = false; break;
+            case KeyEvent.VK_D      : player.setVelocityX(0); player.setAnimation(playerIdleAnim);
 			default :  break;
 		}
 	}
