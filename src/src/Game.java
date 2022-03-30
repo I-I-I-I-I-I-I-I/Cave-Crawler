@@ -20,7 +20,6 @@ import src.game2D.*;
  * @author David Cairns
  *
  */
-@SuppressWarnings("serial")
 
 public class Game extends GameCore
 {
@@ -32,11 +31,14 @@ public class Game extends GameCore
     float	gravity = 0.0001f;
     
     // Game state flags
-    boolean flap = false;
+    boolean flipped = false;
 
-    // Animations
-    static Animation playerIdleAnim;
-    static Animation playerWalkingAnim;
+    //Loading bar animations
+    Animation loadingBarAnim;
+
+    // Player Animations
+    Animation playerIdleAnim;
+    Animation playerWalkingAnim;
 
     //Sprites
     Sprite player;
@@ -66,26 +68,38 @@ public class Game extends GameCore
      * create animations, register event handlers
      */
     public void init()
-    {         
-        Sprite s;	// Temporary reference to a sprite
+    {
 
         // Load the tile map and print it out so we can check it is valid
         tmap.loadMap("src/maps", "map.txt");
         
-        setSize(1920, 1080);
+        setSize(tmap.getPixelWidth(), tmap.getPixelHeight());
         setVisible(true);
 
+        //Loading bar
+        loadingBarAnim = new Animation();
+
+        //Player Animation setup
         playerIdleAnim = new Animation();
-        playerIdleAnim.loadAnimationFromSheet("src/images/playerIdle.png", 20, 1, 60);
         playerWalkingAnim = new Animation();
-        playerWalkingAnim.loadAnimationFromSheet("src/images/playerWalking.png" , 20 , 1 , 60);
+
+        for(int x = 3 ; x < 20 ; x++){
+
+            playerIdleAnim.addFrame(loadImage("mainChar/Idle/BlueIdle" + x + ".png") , 60);
+
+        }
+
+        for(int x = 3 ; x < 20 ; x++){
+
+            playerWalkingAnim.addFrame(loadImage("mainChar/Walk/BlueWalking" + x + ".png") , 60);
+
+        }
+
 
 
         // Initialise the player with an animation
         player = new Sprite(playerIdleAnim);
-        loading = new Sprite()
 
-        animLoop();
         initialiseGame();
       		
         System.out.println(tmap);
@@ -99,10 +113,11 @@ public class Game extends GameCore
     public void initialiseGame()
     {
     	      
-        player.setX(64);
-        player.setY(200);
+        player.setX(tmap.getTileWidth());
+        player.setY(tmap.getTileHeight());
         player.setVelocityX(0);
         player.setVelocityY(0);
+        player.show();
     }
     
     /**
@@ -113,56 +128,22 @@ public class Game extends GameCore
     	// First work out how much we need to shift the view 
     	// in order to see where the player is.
         int xo = 0;
-        int yo = 0;
-
-
-        g.setColor(Color.blue);
-        g.fillRect(0, 0, getWidth(), getHeight());
-
-        // Show score and status information
-        String msg = String.format("Score: %d", total/100);
-        g.setColor(Color.darkGray);
-        g.drawString(msg, getWidth() - 80, 50);
-
-        g.drawImage(playerIdleAnim.getImage() , 50 , 50 , null );
+        int yo = 400;
+        g.setColor(Color.white);
+        g.fillRect(0, 0 , getWidth() , getHeight());
         g.drawRect(getWidth() / 3 , (getHeight() - getHeight() / 3) , 500 , 32);
 
-    }
-
-    public void animLoop() {
-
-        long startTime = System.currentTimeMillis();
-        long currTime = startTime;
-
-        BufferedImage buff = new BufferedImage(getWidth() , getHeight() , BufferedImage.TYPE_INT_RGB);
-
-        Graphics2D bg = (Graphics2D) buff.createGraphics();
-
-        while(true) {
-
-            long elapsedTime = System.currentTimeMillis() - currTime;
-
-            currTime += elapsedTime;
-
-            playerIdleAnim.update(elapsedTime);
-            loadingBar.update(elapsedTime);
-
-            draw(bg);
-
-            Graphics g = getGraphics();
-            g.drawImage(buff , 0 , 0 , null);
-
-            try {
-                Thread.sleep(20);
+        //Check to see what orientation to draw the player in
+        if(flipped == true)
+            {
+                player.drawTransformed(g);
             }
-            catch(InterruptedException ex) {
-
-            }
-            g.dispose();
-
-
+        else {
+            player.draw(g);
         }
-
+        g.setColor(Color.red);
+        player.drawBoundingBox(g);
+        tmap.draw(g , xo, yo);
     }
 
     /**
@@ -172,15 +153,15 @@ public class Game extends GameCore
      */    
     public void update(long elapsed)
     {
-    	
+
 //        // Make adjustments to the speed of the sprite due to gravity
-//        player.setVelocityY(player.getVelocityY()+(gravity*elapsed));
+        player.setVelocityY(player.getVelocityY()+(gravity*elapsed));
 //
-//       	player.setAnimationSpeed(1.0f);
+      	player.setAnimationSpeed(1.0f);
 
        	
         // Now update the sprites animation and position
-        player.update(elapsed);
+          player.update(elapsed);
        
         // Then check for any collisions that may have occurred
         handleScreenEdge(player, tmap, elapsed);
@@ -199,14 +180,14 @@ public class Game extends GameCore
     {
     	// This method just checks if the sprite has gone off the bottom screen.
     	// Ideally you should use tile collision instead of this approach
-    	
+
         if (s.getY() + s.getHeight() > tmap.getPixelHeight())
         {
         	// Put the player back on the map 1 pixel above the bottom
-        	s.setY(tmap.getPixelHeight() - s.getHeight() - 1); 
-        	
+        	s.setY(tmap.getPixelHeight() - s.getHeight() - 1);
+
         	// and make them bounce
-        	s.setVelocityY(-s.getVelocityY());
+        	s.setVelocityY(0);
         }
     }
     
@@ -223,8 +204,6 @@ public class Game extends GameCore
     	int key = e.getKeyCode();
     	
     	if (key == KeyEvent.VK_ESCAPE) stop();
-    	
-    	if (key == KeyEvent.VK_UP) flap = true;
     	   	
     	if (key == KeyEvent.VK_S)
     	{
@@ -239,12 +218,22 @@ public class Game extends GameCore
 
         if(key == KeyEvent.VK_D)
         {
-            player.setVelocityX( 1 ); player.setAnimation(playerWalkingAnim);
+
         }
 
         if(key == KeyEvent.VK_R)
             {
                 player.show();
+            }
+
+        if(key == KeyEvent.VK_A)
+            {
+                flipped = true;
+                player.setScale(-1 , 1);
+                player.setVelocityX(0);
+                player.setVelocityY(0);
+                player.setAnimation(playerWalkingAnim);
+
             }
 
     }
@@ -286,21 +275,24 @@ public class Game extends GameCore
     	{
     		// Here we just stop the sprite. 
     		s.stop();
+            System.out.println("TOP LEFT COLLISION");
     		// You should move the sprite to a position that is not colliding
     	}
+        else{
+
+        }
     	
     	// We need to consider the other corners of the sprite
     	// The above looked at the top left position, let's look at the bottom left.
     	xtile = (int)(sx / tileWidth);
     	ytile = (int)((sy + s.getHeight())/ tileHeight);
     	ch = tmap.getTileChar(xtile, ytile);
-    	
-    	// If it's not empty space
-     	if (ch != '.') 
-    	{
-    		// Let's make the sprite bounce
-    		s.setVelocityY(-s.getVelocityY()); // Reverse velocity 
-    	}
+
+        if(ch != '.')
+            {
+                s.stop();
+                System.out.println("BOTTOM LEFT COLLISION");
+            }
     }
 
 
@@ -313,8 +305,8 @@ public class Game extends GameCore
 		switch (key)
 		{
 			case KeyEvent.VK_ESCAPE : stop(); break;
-			case KeyEvent.VK_UP     : flap = false; break;
             case KeyEvent.VK_D      : player.setVelocityX(0); player.setAnimation(playerIdleAnim);
+            case KeyEvent.VK_A      : System.out.println("'A' Key Released");
 			default :  break;
 		}
 	}
