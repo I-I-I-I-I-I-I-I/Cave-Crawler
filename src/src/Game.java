@@ -2,8 +2,6 @@ package src;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
-import java.awt.image.BufferedImage;
-import java.util.ArrayList;
 
 
 import src.game2D.*;
@@ -29,20 +27,31 @@ public class Game extends GameCore
 
     float 	lift = 0.005f;
     float	gravity = 0.0001f;
+    float globalint = 0;
     
     // Game state flags
     boolean flipped = false;
 
+    //Jump shit
+
+    boolean jumping = false;
+    boolean canJump = true;
+
+    //Background image importing stuff
+
+
     //Loading bar animations
-    Animation loadingBarAnim;
+    Animation backgroundAnim;
 
     // Player Animations
     Animation playerIdleAnim;
     Animation playerWalkingAnim;
+    Animation playerJumpingAnim;
 
     //Sprites
     Sprite player;
     Sprite loadingBar;
+    Sprite background;
 
     TileMap tmap = new TileMap();	// Our tile map, note that we load it in init()
     
@@ -73,15 +82,17 @@ public class Game extends GameCore
         // Load the tile map and print it out so we can check it is valid
         tmap.loadMap("src/maps", "map.txt");
         
-        setSize(tmap.getPixelWidth(), tmap.getPixelHeight());
+        setSize(1920, 1080);
         setVisible(true);
 
         //Loading bar
-        loadingBarAnim = new Animation();
+        backgroundAnim = new Animation();
+        backgroundAnim.addFrame(loadImage("src/maps/background.png") , 1000);
 
         //Player Animation setup
         playerIdleAnim = new Animation();
         playerWalkingAnim = new Animation();
+        playerJumpingAnim = new Animation();
 
         for(int x = 3 ; x < 20 ; x++){
 
@@ -95,10 +106,18 @@ public class Game extends GameCore
 
         }
 
+        for(int x = 0 ; x < 8 ; x++){
+
+            playerJumpingAnim.addFrame(loadImage("mainChar/Jump/blueJump" + x + ".png") , 60);
+
+        }
+
 
 
         // Initialise the player with an animation
         player = new Sprite(playerIdleAnim);
+
+
 
         initialiseGame();
       		
@@ -113,8 +132,8 @@ public class Game extends GameCore
     public void initialiseGame()
     {
     	      
-        player.setX(tmap.getTileWidth());
-        player.setY(tmap.getTileHeight());
+        player.setX(100);
+        player.setY(900);
         player.setVelocityX(0);
         player.setVelocityY(0);
         player.show();
@@ -128,10 +147,11 @@ public class Game extends GameCore
     	// First work out how much we need to shift the view 
     	// in order to see where the player is.
         int xo = 0;
-        int yo = 400;
-        g.setColor(Color.white);
-        g.fillRect(0, 0 , getWidth() , getHeight());
-        g.drawRect(getWidth() / 3 , (getHeight() - getHeight() / 3) , 500 , 32);
+        int yo = 0;
+        g.drawImage(loadImage("src/maps/background.png") , 0 , 0 , null);
+//        g.setColor(Color.black);
+//        g.fillRect(0, 0 , getWidth() , getHeight());
+//        g.drawRect(getWidth() / 3 , (getHeight() - getHeight() / 3) , 500 , 32);
 
         //Check to see what orientation to draw the player in
         if(flipped == true)
@@ -141,6 +161,12 @@ public class Game extends GameCore
         else {
             player.draw(g);
         }
+
+             g.setColor(Color.blue);
+             g.drawString("Player Y : " + (int) player.getY() , 100 , 100);
+             g.drawString("Player Y Velocity : " + player.getVelocityY() , 100 , 120);
+             g.drawString("Canjump : " + canJump, 100 , 140);
+
         g.setColor(Color.red);
         player.drawBoundingBox(g);
         tmap.draw(g , xo, yo);
@@ -154,14 +180,33 @@ public class Game extends GameCore
     public void update(long elapsed)
     {
 
-//        // Make adjustments to the speed of the sprite due to gravity
+        while(jumping == true && player.getVelocityY() > -1)
+        {
+            player.setAnimationSpeed(0.1f);
+            player.setVelocityY(player.getVelocityY()- 0.1f);
+
+            jumping = false;
+        }
+
+        if(canJump == false)
+            {
+                player.setAnimation(playerJumpingAnim);
+            }
+        else if(player.getAnimation() == playerJumpingAnim)
+            {
+                player.setAnimation(playerIdleAnim);
+            }
+
+        // Make adjustments to the speed of the sprite due to gravity
         player.setVelocityY(player.getVelocityY()+(gravity*elapsed));
-//
+
+
+
       	player.setAnimationSpeed(1.0f);
 
        	
         // Now update the sprites animation and position
-          player.update(elapsed);
+        player.update(elapsed);
        
         // Then check for any collisions that may have occurred
         handleScreenEdge(player, tmap, elapsed);
@@ -189,6 +234,14 @@ public class Game extends GameCore
         	// and make them bounce
         	s.setVelocityY(0);
         }
+
+        if(s.getX() < 0)
+            {
+                s.setX(0);
+
+                s.setVelocityY(0);
+
+            }
     }
     
     
@@ -199,43 +252,69 @@ public class Game extends GameCore
      * 
      *  @param e The event that has been generated
      */
-    public void keyPressed(KeyEvent e) 
-    { 
-    	int key = e.getKeyCode();
-    	
-    	if (key == KeyEvent.VK_ESCAPE) stop();
-    	   	
-    	if (key == KeyEvent.VK_S)
-    	{
+    public void keyPressed(KeyEvent e) {
+        long initTime = System.currentTimeMillis();
+        long keyPressTime = 0;
+
+        int key = e.getKeyCode();
+
+        if (key == KeyEvent.VK_ESCAPE) stop();
+
+        if (key == KeyEvent.VK_S) {
 
             player.setAnimation(playerWalkingAnim);
-            player.setScale(-1 , 1);
+            player.setScale(-1, 1);
 
-    		// Example of playing a sound as a thread
-    		Sound s = new Sound("sounds/caw.wav");
-    		s.start();
-    	}
+            // Example of playing a sound as a thread
+            Sound s = new Sound("sounds/caw.wav");
+            s.start();
+        }
 
-        if(key == KeyEvent.VK_D)
-        {
+        if (key == KeyEvent.VK_D) {
+            flipped = true;
+
+            player.setScale(1, 1);
+
+
+            if(player.getVelocityX() < 0.5f)
+                {
+                    player.setVelocityX(0.5f);
+                }
+            else if(player.getVelocityX() <= 1){
+                player.setVelocityX((player.getVelocityX() + 0.1f));
+            }
+
+            player.setAnimation(playerWalkingAnim);
+        }
+
+        if (key == KeyEvent.VK_R) {
+            player.show();
+        }
+
+        if (key == KeyEvent.VK_A) {
+            flipped = true;
+            player.setScale(-1, 1);
+
+            if(player.getVelocityX() > -0.5f)
+            {
+                player.setVelocityX(-0.5f);
+            }
+            else if(player.getVelocityX() >= -1){
+                player.setVelocityX((player.getVelocityX() + -0.1f));
+            }
+
+            player.setAnimation(playerWalkingAnim);
 
         }
 
-        if(key == KeyEvent.VK_R)
-            {
-                player.show();
-            }
+        if (key == KeyEvent.VK_SPACE) {
 
-        if(key == KeyEvent.VK_A)
-            {
-                flipped = true;
-                player.setScale(-1 , 1);
-                player.setVelocityX(0);
-                player.setVelocityY(0);
-                player.setAnimation(playerWalkingAnim);
-
-            }
-
+                if(canJump == true)
+                {
+                    canJump = false;
+                    jumping = true;
+                }
+        }
     }
 
     public boolean boundingBoxCollision(Sprite s1, Sprite s2)
@@ -290,11 +369,17 @@ public class Game extends GameCore
 
         if(ch != '.')
             {
-                s.stop();
-                System.out.println("BOTTOM LEFT COLLISION");
-            }
-    }
+                    s.setVelocityY(0);
+                    s.setY(tmap.getPixelHeight() - (tmap.getTileHeight() + s.getHeight()));
+                    System.out.println("BOTTOM LEFT COLLISION");
 
+                    canJump = true;
+
+                }
+
+        else{
+        }
+    }
 
 	public void keyReleased(KeyEvent e) { 
 
@@ -306,7 +391,8 @@ public class Game extends GameCore
 		{
 			case KeyEvent.VK_ESCAPE : stop(); break;
             case KeyEvent.VK_D      : player.setVelocityX(0); player.setAnimation(playerIdleAnim);
-            case KeyEvent.VK_A      : System.out.println("'A' Key Released");
+            case KeyEvent.VK_A      : player.setVelocityX(0); player.setAnimation(playerIdleAnim);
+            case KeyEvent.VK_SPACE  : System.out.println("Space released");
 			default :  break;
 		}
 	}
