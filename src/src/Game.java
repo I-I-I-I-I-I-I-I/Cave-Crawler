@@ -30,6 +30,7 @@ public class Game extends GameCore
     
     // Game state flags
     boolean flipped = false;
+    boolean inMenu = true;
 
     //Dashing checks
     boolean dash = false;
@@ -50,6 +51,8 @@ public class Game extends GameCore
 
     //Player Sprites
     mainChar player;
+
+    Image playButton;
 
 
     TileMap tmap = new TileMap();	// Our tile map, note that we load it in init()
@@ -78,44 +81,41 @@ public class Game extends GameCore
     public void init()
     {
 
-        // Load the tile map and print it out so we can check it is valid
-        tmap.loadMap("src/maps", "map.txt");
-        
-        setSize(1920, 980);
-        setVisible(true);
+            // Load the tile map and print it out so we can check it is valid
+            tmap.loadMap("src/maps", "map.txt");
 
-        //Player Animation setup
-        playerIdleAnim = new Animation();
-        playerWalkingAnim = new Animation();
-        playerJumpingAnim = new Animation();
-        playerDashAnim = new Animation();
-        playerJumpingAnim.setLoop(false);
+            setSize(1920, 980);
+            setVisible(true);
 
-        //Idle load
-        for(int x = 3 ; x < 20 ; x++)
-        {
-            playerIdleAnim.addFrame(loadImage("mainChar/Idle/BlueIdle" + x + ".png") , 60);
-        }
-        //Walk load
-        for(int x = 3 ; x < 20 ; x++)
-        {
-            playerWalkingAnim.addFrame(loadImage("mainChar/Walk/BlueWalking" + x + ".png") , 60);
-        }
-        //Jump load
-        for(int x = 0 ; x < 8 ; x++)
-        {
-            playerJumpingAnim.addFrame(loadImage("mainChar/Jump/BlueJumping" + x + ".png") , 60);
-        }
-        //Dash load
-        for(int x = 0 ; x < 16 ; x++)
-            {
-                playerDashAnim.addFrame(loadImage("mainChar/Jump/Dash2/teseter/DashAgain" + x + ".png") , 19);
+            //Player Animation setup
+            playerIdleAnim = new Animation();
+            playerWalkingAnim = new Animation();
+            playerJumpingAnim = new Animation();
+            playerDashAnim = new Animation();
+            playerJumpingAnim.setLoop(false);
+
+            //Idle load
+            for (int x = 3; x < 20; x++) {
+                playerIdleAnim.addFrame(loadImage("mainChar/Idle/BlueIdle" + x + ".png"), 60);
+            }
+            //Walk load
+            for (int x = 3; x < 20; x++) {
+                playerWalkingAnim.addFrame(loadImage("mainChar/Walk/BlueWalking" + x + ".png"), 60);
+            }
+            //Jump load
+            for (int x = 0; x < 8; x++) {
+                playerJumpingAnim.addFrame(loadImage("mainChar/Jump/BlueJumping" + x + ".png"), 60);
+            }
+            //Dash load
+            for (int x = 0; x < 16; x++) {
+                playerDashAnim.addFrame(loadImage("mainChar/Jump/Dash2/teseter/DashAgain" + x + ".png"), 19);
             }
 
-        // Initialise the player with an animation
-        player = new mainChar(playerIdleAnim);
+            // Initialise the player with an animation
+            player = new mainChar(playerIdleAnim);
 
-        initialiseGame();
+            initialiseGame();
+
     }
 
     /**
@@ -144,33 +144,44 @@ public class Game extends GameCore
         int xo = 0;
         int yo = 0;
 
-        //Draw The background
-       g.drawImage(loadImage("src/maps/background.png") , 0, 0 , null);
+        //Not an efficient way of displaying a menu as everything else is still being rendered
+        if(inMenu == true)
+        {
+            setSize(896 , 896);
+            tmap.loadMap("src/menu" , "menu.txt");
+            tmap.draw(g, xo, yo);
+            playButton = loadImage("src/menu/LargeButtons/LargeButtons/PlayButton.png");
+            g.drawImage(playButton, 0 , 0 , null);
+            //addMouseListener();
 
 
-        //Check to see what orientation to draw the player in
-        if(flipped == true)
-            {
+        }
+    else {
+            //Draw The background
+            g.drawImage(loadImage("src/maps/background.png"), 0, 0, null);
+
+
+            //Check to see what orientation to draw the player in
+            if (flipped == true) {
                 player.drawTransformed(g);
-            }
-        else
-            {
+            } else {
                 player.draw(g);
             }
 
 
-        tmap.draw(g , xo, yo);
+            tmap.draw(g, xo, yo);
 
 
-        //DEBUGGING, Draw debug stats
-             g.setColor(Color.blue);
-             g.drawString("Player Y : " + (int) player.getY() , 100 , 100);
-             g.drawString("Player Y Velocity : " + player.getVelocityY() , 100 , 120);
-             g.drawString("Canjump : " + canJump, 100 , 140);
-             g.drawString("Dash : " + dash , 100 , 160);
+            //DEBUGGING, Draw debug stats
+            g.setColor(Color.blue);
+            g.drawString("Player Y : " + (int) player.getY(), 100, 100);
+            g.drawString("Player Y Velocity : " + player.getVelocityY(), 100, 120);
+            g.drawString("Canjump : " + canJump, 100, 140);
+            g.drawString("Dash : " + dash, 100, 160);
 
-        g.setColor(Color.red);
-        player.drawBoundingBox(g);
+            g.setColor(Color.red);
+            player.drawBoundingBox(g);
+        }
     }
 
     /**
@@ -189,6 +200,7 @@ public class Game extends GameCore
 
         if(dash == true)
         {
+
              if(player.dash(elapsed , currentXVel) == false)
                  {
                        player.setAnimation(playerIdleAnim);
@@ -196,6 +208,7 @@ public class Game extends GameCore
                  }
 
              else{
+                 player.setScale(0.9f);
                  player.setAnimation(playerDashAnim);
              }
 
@@ -268,8 +281,6 @@ public class Game extends GameCore
      *  @param e The event that has been generated
      */
     public void keyPressed(KeyEvent e) {
-        long initTime = System.currentTimeMillis();
-        long keyPressTime = 0;
 
         int key = e.getKeyCode();
 
@@ -387,11 +398,10 @@ public class Game extends GameCore
     		// Here we just stop the sprite.
             System.out.println("TOP LEFT COLLISION");
     		// You should move the sprite to a position that is not colliding
-            player.setVelocityX(0);
 
-            //s.setX(pixel width of screen - (how wide the current tile is * (how many tile across the char is))
 
-            s.setX((tileWidth * tmap.getMapWidth()) - xtile - player.getWidth());
+
+            s.setVelocityY(-s.getVelocityY());
             
     	}
     	
@@ -403,7 +413,7 @@ public class Game extends GameCore
 
         if(ch != '.') {
                     player.setVelocityY(0);
-                    s.setY((tileHeight * tmap.getMapHeight()) - (tileHeight * (tmap.getMapHeight() - ytile)) - player.getHeight() + 20);
+                    s.setY((tileHeight * tmap.getMapHeight()) - (tileHeight * (tmap.getMapHeight() - ytile)) - player.getHeight());
                     System.out.println("BOTTOM LEFT COLLISION");
 
                     canJump = true;
