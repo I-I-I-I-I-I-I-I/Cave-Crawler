@@ -40,6 +40,9 @@ public class Sprite {
     // If render is 'true', the sprite will be drawn when requested
     private boolean render;
 
+    //If this sprite is clickable by the user or not (mostly menu items)
+    private boolean clickable;
+
     // The draw offset associated with this sprite. Used to draw it
     // relative to specific on screen position (usually the player)
     private int xoff=0;
@@ -454,5 +457,21 @@ public class Sprite {
         yoff = y;
     }
 
+    /**
+     Gives the sprite the ability to be clicked
+     */
+    public void setClickable(boolean isClick)
+        {
+
+            clickable = isClick;
+
+        }
+
+    public boolean isClickable()
+        {
+
+            return clickable;
+
+        }
 
 }

@@ -1,7 +1,8 @@
 package src;
 
 import java.awt.*;
-import java.awt.event.KeyEvent;
+import java.awt.event.*;
+import java.util.ArrayList;
 
 
 import src.game2D.*;
@@ -19,7 +20,7 @@ import src.game2D.*;
  *
  */
 
-public class Game extends GameCore
+public class Game extends GameCore implements MouseListener
 {
 	// Useful game constants
 	static int screenWidth = 1920;
@@ -31,6 +32,7 @@ public class Game extends GameCore
     // Game state flags
     boolean flipped = false;
     boolean inMenu = true;
+    boolean callOnce = true;
 
     //Dashing checks
     boolean dash = false;
@@ -39,9 +41,6 @@ public class Game extends GameCore
     //Jump checks
     boolean jumping = false;
     boolean canJump = false;
-
-    //Loading bar animations
-    Animation backgroundAnim;
 
     // Player Animations
     Animation playerIdleAnim;
@@ -52,7 +51,15 @@ public class Game extends GameCore
     //Player Sprites
     mainChar player;
 
-    Image playButton;
+    //Menu sprites
+    Sprite playButton;
+    Animation playButtonAnim;
+    Sprite quitButton;
+    Animation quitButtonAnim;
+
+    ArrayList<Sprite> Clickable = new ArrayList<Sprite>();
+
+    int nOc = 0;
 
 
     TileMap tmap = new TileMap();	// Our tile map, note that we load it in init()
@@ -81,11 +88,9 @@ public class Game extends GameCore
     public void init()
     {
 
-            // Load the tile map and print it out so we can check it is valid
-            tmap.loadMap("src/maps", "map.txt");
-
             setSize(1920, 980);
             setVisible(true);
+
 
             //Player Animation setup
             playerIdleAnim = new Animation();
@@ -111,10 +116,40 @@ public class Game extends GameCore
                 playerDashAnim.addFrame(loadImage("mainChar/Jump/Dash2/teseter/DashAgain" + x + ".png"), 19);
             }
 
+            //Menu Initialise
+            playButtonAnim = new Animation();
+            playButtonAnim.addFrame(loadImage("src/menu/LargeButtons/LargeButtons/PlayButton.png") , 1000);
+            playButtonAnim.addFrame(loadImage("src/menu/LargeButtons/LargeButtons/PlayButtonHighlight.png") , 1000);
+            playButton = new Sprite(playButtonAnim);
+
+            quitButtonAnim = new Animation();
+            quitButtonAnim.addFrame(loadImage("src/menu/LargeButtons/LargeButtons/QuitButton.png") , 1000);
+            quitButtonAnim.addFrame(loadImage("src/menu/LargeButtons/LargeButtons/QuitButtonHighlight.png") , 1000);
+            quitButton = new Sprite(quitButtonAnim);
+
+
             // Initialise the player with an animation
             player = new mainChar(playerIdleAnim);
 
-            initialiseGame();
+            initialiseMenu();
+
+    }
+
+    public void initialiseMenu(){
+
+        //Menu Init
+
+        //Adds all Sprites which are clickable, mouse listener will only pay attention to these sprites
+        Clickable.add(playButton);
+        Clickable.add(quitButton);
+
+        //Set inital positions of menu buttons, all buttons are relative to the topmost button (playButton), it makes moving them easier.
+        playButton.setY(298);
+        playButton.setX(298);
+        quitButton.setY(playButton.getY() + 150);
+        quitButton.setX(playButton.getX());
+
+        addMouseListener(this);
 
     }
 
@@ -125,9 +160,9 @@ public class Game extends GameCore
      */
     public void initialiseGame()
     {
-    	      
+        //Player Init
         player.setX(100);
-        player.setY(500);
+        player.setY(770);
         player.setVelocityX(0);
         player.setVelocityY(0);
         player.show();
@@ -144,19 +179,34 @@ public class Game extends GameCore
         int xo = 0;
         int yo = 0;
 
-        //Not an efficient way of displaying a menu as everything else is still being rendered
+        /*Not an efficient way of displaying a menu as everything else is still being rendered
+        currently mouse listener is only active within the menu active state as that's the only
+        time it's really useful in the game, could easily be changed though.
+        */
         if(inMenu == true)
         {
             setSize(896 , 896);
             tmap.loadMap("src/menu" , "menu.txt");
             tmap.draw(g, xo, yo);
-            playButton = loadImage("src/menu/LargeButtons/LargeButtons/PlayButton.png");
-            g.drawImage(playButton, 0 , 0 , null);
-            //addMouseListener();
-
-
+            try {
+                checkMouseEvent(getMousePosition().x, getMousePosition().y, 504);
+            }
+            catch(NullPointerException exc)
+                {
+                    System.out.println(System.currentTimeMillis() + "Mouse not on screen");
+                }
+            playButton.draw(g);
+            quitButton.draw(g);
         }
     else {
+
+            if(callOnce == true)
+                {
+                    initialiseGame();
+                    callOnce = false;
+                }
+            setSize(1920, 980);
+            tmap.loadMap("src/maps" , "map.txt");
             //Draw The background
             g.drawImage(loadImage("src/maps/background.png"), 0, 0, null);
 
@@ -170,7 +220,6 @@ public class Game extends GameCore
 
 
             tmap.draw(g, xo, yo);
-
 
             //DEBUGGING, Draw debug stats
             g.setColor(Color.blue);
@@ -390,28 +439,71 @@ public class Game extends GameCore
     	int ytile = (int)(sy / tileHeight);
     	
     	// What tile character is at the top left of the sprite s?
-    	char ch = tmap.getTileChar(xtile, ytile);
-    	
-    	
-    	if (ch != '.') // If it's not a dot (empty space), handle it
+    	char ch_topLeft = tmap.getTileChar(xtile, ytile);
+    	char ch_topRight = tmap.getTileChar(xtile + s.getWidth() , ytile);
+        char ch_bottomLeft = tmap.getTileChar(xtile , ytile + s.getHeight());
+        char ch_bottomRight = tmap.getTileChar(xtile + s.getWidth() , ytile + s.getHeight());
+
+        CollisionType cT;
+
+
+        //Check collisions about Top left
+    	if (ch_topLeft != '.') // If it's not a dot (empty space), handle it
     	{
+            cT = CollisionType.TopLeft;
+                s.setY((tileHeight * (tmap.getMapHeight() - (ytile - 1))));
+                player.setVelocityY( - player.getVelocityY());
+                System.out.println("BOTTOM LEFT COLLISION");
+
+                canJump = true;
+
+                    if(ch_bottomLeft != '.')
+                        {
+                            cT = CollisionType.Left;
+                        }
+
+                    if(ch_topRight != '.')
+                        {
+                            cT = CollisionType.TopRight;
+                        }
     		// Here we just stop the sprite.
             System.out.println("TOP LEFT COLLISION");
     		// You should move the sprite to a position that is not colliding
 
-
-
             s.setVelocityY(-s.getVelocityY());
-            
     	}
-    	
+        else if(ch_topRight != '.')
+            {
+                cT = CollisionType.TopRight;
+
+
+                if (ch_bottomRight != '.')
+                    {
+                    cT = CollisionType.Right;
+
+
+                    }
+        }
+        //Check collision about bottom left
+        else if(ch_bottomLeft != '.')
+            {
+                cT = CollisionType.BottomLeft;
+
+                if(ch_bottomRight != '.')
+                    {
+                        cT = CollisionType.Bottom;
+
+                    }
+
+            }
+
     	// We need to consider the other corners of the sprite
     	// The above looked at the top left position, let's look at the bottom left.
     	xtile = (int)(sx / tileWidth);
     	ytile = (int)((sy + s.getHeight())/ tileHeight);
-    	ch = tmap.getTileChar(xtile, ytile);
+    	ch_topLeft = tmap.getTileChar(xtile, ytile);
 
-        if(ch != '.') {
+        if(ch_topLeft != '.') {
                     player.setVelocityY(0);
                     s.setY((tileHeight * tmap.getMapHeight()) - (tileHeight * (tmap.getMapHeight() - ytile)) - player.getHeight());
                     System.out.println("BOTTOM LEFT COLLISION");
@@ -424,7 +516,7 @@ public class Game extends GameCore
         }
     }
 
-	public void keyReleased(KeyEvent e) { 
+    public void keyReleased(KeyEvent e) {
 
 		int key = e.getKeyCode();
 
@@ -448,5 +540,145 @@ public class Game extends GameCore
 			default :  break;
 		}
 	}
+
+
+    @Override
+    public void mouseClicked(MouseEvent e) {
+
+        int mouseClickX = getMousePosition().x;
+        int mouseClickY = getMousePosition().y;
+        nOc = nOc + 1;
+        Sprite current = null;
+
+        try {
+            checkMouseEvent(mouseClickX, mouseClickY , 500);
+
+        } catch (NullPointerException exc) {
+            System.out.println("No sprite clicked!");
+        }
+
+        if (current != null) {
+
+            System.out.println(current.toString() + " clicked");
+
+        }
+
+
+        System.out.println("Click at X : " + mouseClickX + " Y : " + mouseClickY + " Number of clicks: " + nOc);
+    }
+
+    @Override
+    public void mousePressed(MouseEvent e) {
+
+    }
+
+    @Override
+    public void mouseReleased(MouseEvent e) {
+
+    }
+
+    @Override
+    public void mouseEntered(MouseEvent e) {
+
+    }
+
+    @Override
+    public void mouseExited(MouseEvent e) {
+
+    }
+
+
+    private void checkMouseEvent(int clickX , int clickY , int type){
+
+        for(int x = 0 ; x < Clickable.size() ; x++) {
+
+            Sprite current = Clickable.get(x);
+            float currentX = current.getX();
+            float currentY = current.getY();
+
+            //Check within X and Y bounds of current sprite in clickable list
+            if (clickX >= currentX && clickX <= (currentX + current.getWidth()) && clickY >= currentY && clickY <= (currentY + current.getHeight())) {
+
+                mouseEvents(current, type);
+
+            }
+
+                else{
+
+                    mouseEvents(current , 505);
+
+                }
+
+        }
+
+    }
+
+
+    /**
+     * Tells a specific sprite what to do when it is clicked.
+     * NEVER CALL DIRECTLY --> ONLY CALL THROUGH "checkClickEvents()" method
+     * @param selected The reference of the sprite to be checked
+     * @param type The type of mouse event that occurred
+     *
+     * MOUSE EVENTS -> Click = 500
+     *                 Enter = 504
+     *                 Exit = 505
+     */
+    private void mouseEvents (Sprite selected , int type)
+        {
+            //Play button selected
+            if(selected == playButton)
+                {
+                    switch(type) {
+                        case 500 : {
+                                inMenu = false;
+                                break;
+                                   }
+                        case 504 : {
+                                    playButton.setAnimationFrame(1);
+                                    break;
+                                    }
+                        case 505 : {
+                                    playButton.setAnimationFrame(0);
+                                    break;
+                                   }
+                    }
+                }
+
+            //Quit button selected
+            if(selected == quitButton)
+            {
+                switch(type) {
+                    case 500 : {
+                        stop();
+                        break;
+                    }
+                    case 504 : {
+                        quitButton.setAnimationFrame(1);
+                        break;
+                    }
+                    case 505 : {
+                        quitButton.setAnimationFrame(0);
+                        break;
+                    }
+                }
+            }
+
+
+
+        }
+
+        public enum CollisionType {
+
+            TopLeft,
+            TopRight,
+            BottomLeft,
+            BottomRight,
+            Top,
+            Right,
+            Bottom,
+            Left
+
+        }
 
 }
