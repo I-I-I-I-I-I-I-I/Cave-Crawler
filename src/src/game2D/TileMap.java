@@ -308,6 +308,22 @@ public class TileMap
 		return tmap[x][y].getCharacter();
 	}
 
+	public char getTileChar(int[] coords)
+		{
+			int x = 0;
+			int y = 0;
+			try {
+				 x = coords[0] / tileWidth;
+				 y = coords[1] / tileHeight;
+			}
+			catch (ArithmeticException e)
+				{
+					System.out.println("Error in the new getTileChar method, it's probably trying to grab the tile dimensions before the map is initialised");
+				}
+			if(!valid(x , y)) return '?';
+			return tmap[x][y].getCharacter();
+		}
+
 	/**
 	 * Gets the tile object at position 'x,y'
 	 * 

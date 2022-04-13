@@ -95,7 +95,6 @@ public class Animation {
 
             while (animTime > getFrame(currFrameIndex).endTime) {
                 currFrameIndex++;
-                System.out.println("Currently displaying frame " + currFrameIndex);
             }
             
             // If we hit a stopFrame, pause the animation

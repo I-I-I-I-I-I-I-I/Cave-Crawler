@@ -28,6 +28,9 @@ public class Game extends GameCore implements MouseListener
 
     float 	lift = 0.005f;
     float	gravity = 0.0003f;
+
+    int xo = 0;
+    int yo;
     
     // Game state flags
     boolean flipped = false;
@@ -37,6 +40,11 @@ public class Game extends GameCore implements MouseListener
     //Dashing checks
     boolean dash = false;
     float currentXVel = 0;
+
+    //Collision checks
+    CollisionType cT;
+    char[] coords;
+    boolean debugFreeze;
 
     //Jump checks
     boolean jumping = false;
@@ -174,10 +182,6 @@ public class Game extends GameCore implements MouseListener
      */
     public void draw(Graphics2D g)
     {
-    	// First work out how much we need to shift the view 
-    	// in order to see where the player is.
-        int xo = 0;
-        int yo = 0;
 
         /*Not an efficient way of displaying a menu as everything else is still being rendered
         currently mouse listener is only active within the menu active state as that's the only
@@ -187,7 +191,7 @@ public class Game extends GameCore implements MouseListener
         {
             setSize(896 , 896);
             tmap.loadMap("src/menu" , "menu.txt");
-            tmap.draw(g, xo, yo);
+            tmap.draw(g, 0, 0);
             try {
                 checkMouseEvent(getMousePosition().x, getMousePosition().y, 504);
             }
@@ -205,6 +209,23 @@ public class Game extends GameCore implements MouseListener
                     initialiseGame();
                     callOnce = false;
                 }
+
+            // First work out how much we need to shift the view
+            // in order to see where the player is.
+
+
+
+            if(player.getX() >= (screenWidth / 2))
+                {
+                    xo = - ((int)(player.getX() - (screenWidth / 2)));
+                }
+            else{
+
+                xo = 0;
+
+            }
+            int yo = 0;
+
             setSize(1920, 980);
             tmap.loadMap("src/maps" , "map.txt");
             //Draw The background
@@ -224,9 +245,15 @@ public class Game extends GameCore implements MouseListener
             //DEBUGGING, Draw debug stats
             g.setColor(Color.blue);
             g.drawString("Player Y : " + (int) player.getY(), 100, 100);
+            g.drawString("Player X : " + (int) player.getX() , 100 , 80);
             g.drawString("Player Y Velocity : " + player.getVelocityY(), 100, 120);
             g.drawString("Canjump : " + canJump, 100, 140);
             g.drawString("Dash : " + dash, 100, 160);
+            g.drawString("Main char collision direction : " + cT.toString() , 100 , 180);
+            for(int x = 0 ; x < coords.length ; x++)
+                {
+                    g.drawString("Collision coords : " + coords[x] , 100 , 200 + (x * 20));
+                }
 
             g.setColor(Color.red);
             player.drawBoundingBox(g);
@@ -368,7 +395,7 @@ public class Game extends GameCore implements MouseListener
 
         if (key == KeyEvent.VK_R) {
 
-            tmap.loadMap("src/maps/" , "map2.txt");
+            debugFreeze = true;
 
         }
 
@@ -424,78 +451,97 @@ public class Game extends GameCore implements MouseListener
 
     public void checkTileCollision(Sprite s, TileMap tmap)
     {
+
     	// Take a note of a sprite's current position
     	float sx = s.getX();
     	float sy = s.getY();
-    	
+
     	// Find out how wide and how tall a tile is
     	float tileWidth = tmap.getTileWidth();
     	float tileHeight = tmap.getTileHeight();
-    	
+
     	// Divide the sprite’s x coordinate by the width of a tile, to get
-    	// the number of tiles across the x axis that the sprite is positioned at 
-    	int	xtile = (int)(sx / tileWidth);
+    	// the number of tiles across the x axis that the sprite is positioned at
+    	int	xtile = (int)((sx / tileWidth));
     	// The same applies to the y coordinate
     	int ytile = (int)(sy / tileHeight);
-    	
+
+        //SPRITE CORNER COORDS
+        int[] topLeft = {(int) s.getX() , (int) s.getY()};
+        System.out.println("topLeft : " + topLeft[0] + " " + topLeft[1]);
+        int[] topRight = {((int) s.getX() + s.getWidth()) , (int) s.getY()};
+        System.out.println("topRight : " + topRight[0] + " " + topRight[1]);
+        int[] bottomLeft = {(int) s.getX() , ((int) s.getY() + s.getHeight())};
+        System.out.println("bottomLeft : " + bottomLeft[0] + " " + bottomLeft[1]);
+        int[] bottomRight = {((int) s.getX() + s.getWidth()) , ((int)s.getY() + s.getHeight())};
+        System.out.println("bottomRight : " + bottomRight[0] + " " + bottomRight[1]);
+//DEBUG
+        if(debugFreeze == true)
+            {
+                System.out.println("D");
+            }
+
     	// What tile character is at the top left of the sprite s?
-    	char ch_topLeft = tmap.getTileChar(xtile, ytile);
-    	char ch_topRight = tmap.getTileChar(xtile + s.getWidth() , ytile);
-        char ch_bottomLeft = tmap.getTileChar(xtile , ytile + s.getHeight());
-        char ch_bottomRight = tmap.getTileChar(xtile + s.getWidth() , ytile + s.getHeight());
+    	char ch_topLeft = tmap.getTileChar(topLeft);
+    	char ch_topRight = tmap.getTileChar(topRight);
+        char ch_bottomLeft = tmap.getTileChar(bottomLeft);
+        char ch_bottomRight = tmap.getTileChar(bottomRight);
 
-        CollisionType cT;
+        coords = new char[]{ch_topLeft, ch_topRight, ch_bottomLeft, ch_bottomRight};
 
+        cT = cT.NoCollision;
 
         //Check collisions about Top left
-    	if (ch_topLeft != '.') // If it's not a dot (empty space), handle it
+    	if (coords[0] != '.') // If it's not a dot (empty space), handle it
     	{
             cT = CollisionType.TopLeft;
                 s.setY((tileHeight * (tmap.getMapHeight() - (ytile - 1))));
-                player.setVelocityY( - player.getVelocityY());
-                System.out.println("BOTTOM LEFT COLLISION");
 
                 canJump = true;
 
-                    if(ch_bottomLeft != '.')
+                    if(coords[2] != '.')
                         {
                             cT = CollisionType.Left;
+                            System.out.println("LEFT SIDE COLLISION");
                         }
 
-                    if(ch_topRight != '.')
+                    if(coords[1] != '.')
                         {
-                            cT = CollisionType.TopRight;
+                            cT = CollisionType.Top;
+                            System.out.println("TOP COLLISION");
                         }
-    		// Here we just stop the sprite.
-            System.out.println("TOP LEFT COLLISION");
-    		// You should move the sprite to a position that is not colliding
 
             s.setVelocityY(-s.getVelocityY());
     	}
-        else if(ch_topRight != '.')
+        else if(coords[1] != '.')
             {
                 cT = CollisionType.TopRight;
 
-
-                if (ch_bottomRight != '.')
+                if (coords[3] != '.')
                     {
                     cT = CollisionType.Right;
+                        System.out.println("RIGHT SIDE COLLISION");
 
+                        s.setVelocityX(0);
+                        s.setX((tmap.getTileXC((topLeft[0] / (int) tileWidth) , (topLeft[1] / (int) tileWidth))) + (tileWidth - s.getWidth()));
 
                     }
         }
         //Check collision about bottom left
-        else if(ch_bottomLeft != '.')
+        else if(coords[2] != '.')
             {
                 cT = CollisionType.BottomLeft;
 
-                if(ch_bottomRight != '.')
+                if(coords[3] != '.')
                     {
                         cT = CollisionType.Bottom;
-
+                        System.out.println("BOTTOM COLLISION");
                     }
 
             }
+
+
+
 
     	// We need to consider the other corners of the sprite
     	// The above looked at the top left position, let's look at the bottom left.
@@ -677,7 +723,8 @@ public class Game extends GameCore implements MouseListener
             Top,
             Right,
             Bottom,
-            Left
+            Left,
+            NoCollision
 
         }
 
