@@ -35,4 +35,11 @@ public class mainChar extends Sprite{
             return stillDashing;
 
         }
+
+        public void collision(){
+
+
+
+        }
+
 }

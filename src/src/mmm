@@ -1,0 +1,133 @@
+  public void checkTileCollision(Sprite s, TileMap tmap)
+    {
+
+    	// Take a note of a sprite's current position
+    	float sx = s.getX();
+    	float sy = s.getY();
+
+    	// Find out how wide and how tall a tile is
+    	float tileWidth = tmap.getTileWidth();
+    	float tileHeight = tmap.getTileHeight();
+
+        //Current velocity of sprite
+        float velY = s.getVelocityY();
+        float velX = s.getVelocityX();
+
+    	// Divide the sprite’s x coordinate by the width of a tile, to get
+    	// the number of tiles across the x axis that the sprite is positioned at
+    	int	xtile = (int)((sx / tileWidth));
+    	// The same applies to the y coordinate
+    	int ytile = (int)(sy / tileHeight);
+
+        //SPRITE CORNER COORDS
+        int[] topLeft = {(int) s.getX() , (int) s.getY()};
+        System.out.println("topLeft : " + topLeft[0] + " " + topLeft[1]);
+        int[] topRight = {((int) s.getX() + s.getWidth()) , (int) s.getY()};
+        System.out.println("topRight : " + topRight[0] + " " + topRight[1]);
+        int[] bottomLeft = {(int) s.getX() , ((int) s.getY() + s.getHeight())};
+        System.out.println("bottomLeft : " + bottomLeft[0] + " " + bottomLeft[1]);
+        int[] bottomRight = {((int) s.getX() + s.getWidth()) , ((int)s.getY() + s.getHeight())};
+        System.out.println("bottomRight : " + bottomRight[0] + " " + bottomRight[1]);
+
+        // What tile character is at the top left of the sprite s?
+        char ch_topLeft = tmap.getTileChar(topLeft);
+        char ch_topRight = tmap.getTileChar(topRight);
+        char ch_bottomLeft = tmap.getTileChar(bottomLeft);
+        char ch_bottomRight = tmap.getTileChar(bottomRight);
+
+        coords = new char[]{ch_topLeft, ch_topRight, ch_bottomLeft, ch_bottomRight};
+
+        cT = cT.NoCollision;
+
+        //DEBUG
+        if(debugFreeze == true)
+        {
+            System.out.println("D");
+            collisionBetween(topLeft , bottomLeft);
+        }
+
+        //Check collisions about Top left
+    	if (coords[0] != '.') // If it's not a dot (empty space), handle it
+    	{
+            cT = CollisionType.TopLeft;
+
+                    if(coords[2] != '.')
+                        {
+                            cT = CollisionType.Left;
+                            System.out.println("LEFT SIDE COLLISION");
+
+                            s.setVelocityX(0);
+                            s.setX((tmap.getTileXC((topRight[0] / (int) tileWidth) , (topRight[1] / (int) tileWidth))));
+
+                        }
+
+                    if(coords[1] != '.')
+                        {
+                            cT = CollisionType.Top;
+                            System.out.println("TOP COLLISION");
+                            s.setVelocityY(-s.getVelocityY());
+
+                        }
+
+                    else
+                    {
+                        s.setX((tmap.getTileXC((topRight[0] / (int) tileWidth) , (topRight[1] / (int) tileWidth))));
+                    }
+
+
+    	}
+        else if(coords[1] != '.')
+            {
+
+                if (coords[3] != '.')
+                    {
+                    cT = CollisionType.Right;
+                        System.out.println("RIGHT SIDE COLLISION");
+
+                        s.setVelocityX(0);
+                        s.setX((tmap.getTileXC((topLeft[0] / (int) tileWidth) , (topLeft[1] / (int) tileWidth))) + (tileWidth - s.getWidth()));
+
+                    }
+                else{
+
+                    cT = CollisionType.TopRight;
+
+                    s.setX((tmap.getTileXC((topLeft[0] / (int) tileWidth) , (topLeft[1] / (int) tileWidth))) + (tileWidth - s.getWidth()));
+
+
+                }
+        }
+        //Check collision about bottom left
+        else if(coords[2] != '.')
+            {
+                cT = CollisionType.BottomLeft;
+
+                if(coords[3] != '.')
+                    {
+                        cT = CollisionType.Bottom;
+                        System.out.println("BOTTOM COLLISION");
+                    }
+
+            }
+
+
+
+
+    	// We need to consider the other corners of the sprite
+    	// The above looked at the top left position, let's look at the bottom left.
+    	xtile = (int)(sx / tileWidth);
+    	ytile = (int)((sy + s.getHeight())/ tileHeight);
+    	ch_topLeft = tmap.getTileChar(xtile, ytile);
+
+        if(ch_topLeft != '.') {
+                    player.setVelocityY(0);
+                    s.setY((tileHeight * tmap.getMapHeight()) - (tileHeight * (tmap.getMapHeight() - ytile)) - player.getHeight());
+                    System.out.println("BOTTOM LEFT COLLISION");
+
+                    canJump = true;
+
+                }
+
+        else{
+        }
+    }
